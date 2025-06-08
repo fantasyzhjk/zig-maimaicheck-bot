@@ -10,13 +10,15 @@
 * 时间戳处理只写了UTC，还没写LocalTime
 * print的格式化根本调试不了，报错完全看不明白
 * 社区环境基本没有什么封装好的库，全要自己造
+* 它甚至连shared_ptr都没有
+* 多线程queue也没有
 
 TODO 核心方面:
 
-* Onebot的ws通信要处理请求的回调
 * 增加更多OneBot API
 * 优化错误处理，现在一个出错整个程序爆炸
 * 检查内存泄漏
+* 优化性能
 
 TODO 功能方面:
 
@@ -24,3 +26,10 @@ TODO 功能方面:
 * 上传时间显示可以更直观
 * （也许）增加个人关注机厅的功能
 * （也许）把文字输出改成图片
+
+## refrence
+
+<https://github.com/Aandreba/zigrc>
+<https://github.com/erik-dunteman/chanz>
+<https://github.com/JakubSzark/zig-string>
+<https://github.com/karlseguin/websocket.zig>

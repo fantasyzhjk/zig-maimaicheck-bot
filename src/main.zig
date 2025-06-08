@@ -5,7 +5,16 @@ const ts = @import("timestamp");
 const ws = @import("websocket");
 const mongodb = @import("mongodb.zig");
 const maimai = @import("maimai.zig");
+const utils = @import("utils");
 const String = @import("string").String;
+const chanz = @import("chanz.zig");
+const rc = @import("rc.zig");
+
+pub const std_options = std.Options{ .log_scope_levels = &[_]std.log.ScopeLevel{
+    .{ .scope = .websocket, .level = .info },
+} };
+
+pub const RetWrapper = struct { ret: onebot.action.DynamicApiReturn, arena: rc.Arc(std.heap.ArenaAllocator) };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
@@ -41,9 +50,15 @@ pub fn main() !void {
     var arcadeinfo = try client.getCollection("maimaicheckbot", "arcadeinfo");
     defer arcadeinfo.deinit();
 
+    var channel = chanz.Chan(RetWrapper).init(allocator);
+    defer channel.deinit();
+
     // Arbitrary (application-specific) data to pass into each handler
     // Pass void ({}) into listen if you have none
-    var app = App{ .allocator = allocator, .city_info = &cityinfo, .group_info = &groupinfo, .arcade_info = &arcadeinfo };
+    var app = App{ .allocator = allocator, .thread_pool = undefined, .channel = channel, .city_info = &cityinfo, .group_info = &groupinfo, .arcade_info = &arcadeinfo };
+
+    try app.thread_pool.init(.{ .allocator = app.allocator });
+    defer app.thread_pool.deinit();
 
     // this blocks
     try server.listen(&app);
@@ -68,8 +83,7 @@ const Handler = struct {
         };
     }
 
-    fn writeMessage(self: *Handler, h: anytype) !void {
-        const H = @TypeOf(h);
+    fn writeAction(self: *Handler, comptime H: type, h: anytype) !H.Ret {
         var arena = std.heap.ArenaAllocator.init(self.app.allocator);
         defer arena.deinit();
         const allocator = arena.allocator();
@@ -78,36 +92,29 @@ const Handler = struct {
         var string = String.init(allocator);
         try std.json.stringify(jreq, .{}, string.writer());
         try self.conn.writeText(string.str());
+        const ret = try self.app.channel.recv();
+        defer if (ret.arena.releaseUnwrap()) |v| v.deinit();
+        if (std.mem.eql(u8, ret.ret.echo, req.echo)) {
+            switch (@typeInfo(H.Ret)) {
+                .void => {
+                    return;
+                },
+                .@"struct" => {
+                    return try H.Ret.fromJson(ret.ret.data, self.app.allocator);
+                },
+                else => {
+                    return error.InvalidReturnType;
+                },
+            }
+        } else {
+            return error.InvalidReturn;
+        }
     }
 
-    fn splitCommandStart(str: []const u8, command: []const u8) ?[]const u8 {
-        // 检查字符串是否以 !、！或 / 开头
-        if (str.len == 0) {
-            return null;
-        }
-
-        var start_pos: usize = 0;
-
-        // 检查各种命令前缀
-        if (std.mem.startsWith(u8, str, "!")) {
-            start_pos = 1;
-        } else if (std.mem.startsWith(u8, str, "！")) {
-            start_pos = 3; // UTF-8编码的！占3个字节
-        } else if (std.mem.startsWith(u8, str, "/")) {
-            start_pos = 1;
-        } else {
-            return null;
-        }
-
-        // 从命令开始位置切出剩余字符串
-        const remaining = str[start_pos..];
-
-        // 检查剩余部分是否以command开头
-        if (std.mem.startsWith(u8, remaining, command)) {
-            return remaining[command.len..];
-        } else {
-            return null;
-        }
+    fn writeMessage(self: *Handler, h: anytype) !i64 {
+        const H = @TypeOf(h);
+        const ret = try self.writeAction(H, h);
+        return ret.message_id;
     }
 
     fn privateMessage(self: *Handler, e: onebot.MessageEvent) !void {
@@ -116,7 +123,7 @@ const Handler = struct {
         const allocator = arena.allocator();
 
         if (e.user_id == 1071814607) {
-            if (splitCommandStart(e.raw_message, "jt")) |value| {
+            if (utils.splitCommandStart(e.raw_message, "jt")) |value| {
                 const city_name = std.mem.trim(u8, value, " \n");
                 const arcades = try self.app.arcade_info.find(.{ .city_name = city_name }, allocator, maimai.ArcadeInfo);
 
@@ -138,50 +145,87 @@ const Handler = struct {
 
                 var chain = onebot.MessageChain.init(allocator);
                 defer chain.deinit();
-                try self.writeMessage(onebot.action.PrivateMessageReq{
+                _ = try self.writeMessage(onebot.action.PrivateMessageReq{
                     .user_id = e.user_id,
                     .message = chain.text(result.str()),
+                });
+            } else {
+                const ret = try self.writeAction(onebot.action.GetStatus, onebot.action.GetStatus{});
+                std.debug.print("{}", .{ret});
+                var chain = onebot.MessageChain.init(self.app.allocator);
+                defer chain.deinit();
+                try chain.text("我在复读：").chain(&e.message);
+                _ = try self.writeMessage(onebot.action.PrivateMessageReq{
+                    .user_id = e.user_id,
+                    .message = &chain,
                 });
             }
         }
     }
 
     fn groupMessage(self: *Handler, e: onebot.MessageEvent) !void {
-        _ = self;
-        if (e.user_id == 1071814607) {
-            // var chain = onebot.MessageChain.init(self.app.allocator);
-            // defer chain.deinit();
-            // try chain.text("我在复读：").chain(&e.message);
-            // try self.writeMessage(onebot.action.GroupMessageReq{
-            //     .group_id = e.group_id.?,
-            //     .message = &chain,
-            // });
+        var arena = std.heap.ArenaAllocator.init(self.app.allocator);
+        defer arena.deinit();
+        const allocator = arena.allocator();
+
+        if (e.group_id.? == 195135404) {
+            if (utils.checkCommandStart(e.raw_message, "ginfo")) {
+                const ret = try self.writeAction(onebot.action.GetGroupInfo, onebot.action.GetGroupInfo{ .group_id = e.group_id.? });
+                defer ret.deinit();
+                std.debug.print("{}", .{ret});
+
+                var s = String.init(allocator);
+                const writer = s.writer();
+
+                try writer.print("[{}] {s} ({})", .{ ret.group_id, ret.group_name.str(), ret.member_count });
+
+                var chain = onebot.MessageChain.init(self.app.allocator);
+                defer chain.deinit();
+
+                _ = try self.writeMessage(onebot.action.GroupMessageReq{
+                    .group_id = e.group_id.?,
+                    .message = chain.text(s.str()),
+                });
+            }
+        }
+    }
+
+    fn processMessage(self: *Handler, e: onebot.MessageEvent, arena: rc.Arc(std.heap.ArenaAllocator)) void {
+        defer if (arena.releaseUnwrap()) |v| v.deinit();
+        switch (e.message_type) {
+            .private => {
+                std.log.info("收到来自 {} 的私聊消息：{s}", .{ e.user_id, e.raw_message });
+                self.privateMessage(e) catch |err| {
+                    std.log.info("出现未知错误：{any}", .{err});
+                };
+            },
+            .group => {
+                std.log.info("收到来自 {} 里 {} 的群聊消息：{s}", .{ e.group_id.?, e.user_id, e.raw_message });
+                self.groupMessage(e) catch |err| {
+                    std.log.info("出现未知错误：{any}", .{err});
+                };
+            },
         }
     }
 
     // You must defined a public clientMessage method
     pub fn clientMessage(self: *Handler, data: []const u8) !void {
         // std.log.debug("{s}", .{data});
-        var j = try std.json.parseFromSlice(std.json.Value, self.app.allocator, data, .{});
-        defer j.deinit();
 
-        switch (j.value) {
-            .object => |root| {
-                if (root.contains("retcode")) {} else if (onebot.Event.fromJson(self.app.allocator, j.value)) |e| {
-                    defer e.deinit(self.app.allocator);
+        var arena = try rc.arc(self.app.allocator, std.heap.ArenaAllocator.init(self.app.allocator));
+        const allocator = arena.value.allocator();
+        defer if (arena.releaseUnwrap()) |v| v.deinit();
 
+        const j = try std.json.parseFromSliceLeaky(std.json.Value, allocator, data, .{});
+        switch (j) {
+            .object => {
+                if (onebot.action.DynamicApiReturn.fromJson(j)) |ret| {
+                    try self.app.channel.send(.{ .ret = ret, .arena = arena.retain() });
+                    std.log.debug("{s}", .{data});
+                } else if (onebot.Event.fromJson(allocator, j)) |e| {
                     switch (e.post_data) {
                         .message => |me| {
-                            switch (me.message_type) {
-                                .private => {
-                                    std.log.info("收到来自 {} 的私聊消息：{s}", .{ me.user_id, me.raw_message });
-                                    try self.privateMessage(me);
-                                },
-                                .group => {
-                                    std.log.info("收到来自 {} 里 {} 的群聊消息：{s}", .{ me.group_id.?, me.user_id, me.raw_message });
-                                    try self.groupMessage(me);
-                                },
-                            }
+                            try self.app.thread_pool.spawn(processMessage, .{ self, me, arena.retain() });
                         },
                         .meta => |ma| {
                             switch (ma) {
@@ -204,6 +248,9 @@ const Handler = struct {
 // init function.
 const App = struct {
     allocator: std.mem.Allocator,
+    thread_pool: std.Thread.Pool,
+    channel: chanz.Chan(RetWrapper),
+
     city_info: *mongodb.MongoConnection,
     group_info: *mongodb.MongoConnection,
     arcade_info: *mongodb.MongoConnection,
