@@ -26,12 +26,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const onebot_mod = b.addModule("onebot", .{
-        .root_source_file = b.path("src/onebot/onebot.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
     const utils_mod = b.addModule("utils", .{
         .root_source_file = b.path("src/utils.zig"),
         .target = target,
@@ -50,18 +44,19 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    onebot_mod.addImport("timestamp", timestamp_mod);
-    onebot_mod.addImport("uuid", uuid_mod);
-    onebot_mod.addImport("utils", utils_mod);
     exe_mod.addImport("timestamp", timestamp_mod);
     exe_mod.addImport("uuid", uuid_mod);
     exe_mod.addImport("utils", utils_mod);
-    exe_mod.addImport("onebot", onebot_mod);
 
     exe_mod.addImport("websocket", b.dependency("websocket", .{
         .target = target,
         .optimize = optimize,
     }).module("websocket"));
+
+    exe_mod.addImport("string", b.dependency("string", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("string"));
 
     // This creates another `std.Build.Step.Compile`, but this one builds an executable
     // rather than a static library.
@@ -70,10 +65,31 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
 
+    exe.addIncludePath(.{ .cwd_relative = "libs/mongo-c-driver_x64-windows/include" });
+    exe.addLibraryPath(.{ .cwd_relative = "libs/mongo-c-driver_x64-windows/lib" });
+
+    exe.addIncludePath(.{ .cwd_relative = "libs/libbson_x64-windows/include" });
+    exe.addLibraryPath(.{ .cwd_relative = "libs/libbson_x64-windows/lib" });
+
+    exe.addIncludePath(.{ .cwd_relative = "libs/utf8proc_x64-windows/include" });
+    exe.addLibraryPath(.{ .cwd_relative = "libs/utf8proc_x64-windows/lib" });
+
+    exe.linkLibC();
+    exe.linkSystemLibrary("mongoc-1.0");
+    exe.linkSystemLibrary("bson-1.0");
+    exe.linkSystemLibrary("utf8proc");
+
+    const install_dll = b.addInstallBinFile(.{ .cwd_relative = "libs/mongo-c-driver_x64-windows/bin/mongoc-1.0.dll" }, "mongoc-1.0.dll");
+    const install_bson_dll = b.addInstallBinFile(.{ .cwd_relative = "libs/libbson_x64-windows/bin/bson-1.0.dll" }, "bson-1.0.dll");
+    const install_utf8proc_dll = b.addInstallBinFile(.{ .cwd_relative = "libs/utf8proc_x64-windows/bin/utf8proc.dll" }, "utf8proc.dll");
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
     b.installArtifact(exe);
+
+    exe.step.dependOn(&install_dll.step);
+    exe.step.dependOn(&install_bson_dll.step);
+    exe.step.dependOn(&install_utf8proc_dll.step);
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish

@@ -26,17 +26,17 @@ class WebSocketClient
 
   def connect
     puts "正在连接到 #{@url}..."
-    
+
     @ws = WebSocket::Client::Simple.connect @url
-    
-    @ws.on :open do |event|
+
+    @ws.on :open do |_event|
       puts "WebSocket 连接已建立"
       $running = true
     end
 
     @ws.on :message do |event|
       msg = JSON.parse(safe_decode(event.data))
-      
+
       puts "收到消息: #{msg}"
     end
 
@@ -82,7 +82,7 @@ class WebSocketClient
           age: 18
         }
       }
-      
+
       puts "发送消息: #{json_message}"
       @ws.send(json_message.to_json)
     else
@@ -92,12 +92,12 @@ class WebSocketClient
 
   def start_input_loop
     puts "\n请输入消息 (输入 'quit' 或 'exit' 退出):"
-    
+
     input_thread = Thread.new do
       loop do
         print "> "
         input = gets.chomp
-        
+
         case input.downcase
         when 'quit', 'exit'
           puts "正在退出..."
@@ -122,7 +122,7 @@ class WebSocketClient
         "type" => "ping",
         "timestamp" => Time.now.to_f,
       }
-      
+
       puts "发送消息: #{ping_message}"
       @ws.send(ping_message.to_json)
     end
@@ -139,7 +139,7 @@ if __FILE__ == $0
   # 默认连接到本地WebSocket服务器
   # 你可以修改这个URL来连接到其他服务器
   url = ARGV[0] || "ws://localhost:9224"
-  
+
   begin
     client = WebSocketClient.new(url)
     client.connect

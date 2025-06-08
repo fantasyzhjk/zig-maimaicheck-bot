@@ -1,0 +1,137 @@
+{
+  "$schema": "https://raw.githubusercontent.com/spdx/spdx-spec/v2.2.1/schemas/spdx-schema.json",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "documentNamespace": "https://spdx.org/spdxdocs/utf8proc-x64-windows-2.10.0-92ce68ea-d01e-4604-894c-0681ffd21bcc",
+  "name": "utf8proc:x64-windows@2.10.0 4b41449bdfa69fa013a2d7af0c5b886a32b9a2b98906b8c48b132599c5a544a6",
+  "creationInfo": {
+    "creators": [
+      "Tool: vcpkg-2025-04-07-b8b513ba8778c918cff49c3e837aae5999d5d2aa"
+    ],
+    "created": "2025-06-07T08:24:52Z"
+  },
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "GENERATES",
+      "relatedSpdxElement": "SPDXRef-binary"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-2"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "GENERATED_FROM",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-0",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-1",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-2",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-2",
+      "relationshipType": "DEPENDENCY_MANIFEST_OF",
+      "relatedSpdxElement": "SPDXRef-port"
+    }
+  ],
+  "packages": [
+    {
+      "name": "utf8proc",
+      "SPDXID": "SPDXRef-port",
+      "versionInfo": "2.10.0",
+      "downloadLocation": "git+https://github.com/Microsoft/vcpkg#ports/utf8proc",
+      "homepage": "https://github.com/JuliaLang/utf8proc",
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "description": "Clean C library for processing UTF-8 Unicode data.",
+      "comment": "This is the port (recipe) consumed by vcpkg."
+    },
+    {
+      "name": "utf8proc:x64-windows",
+      "SPDXID": "SPDXRef-binary",
+      "versionInfo": "4b41449bdfa69fa013a2d7af0c5b886a32b9a2b98906b8c48b132599c5a544a6",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "comment": "This is a binary package built by vcpkg."
+    },
+    {
+      "SPDXID": "SPDXRef-resource-0",
+      "name": "JuliaLang/utf8proc",
+      "downloadLocation": "git+https://github.com/JuliaLang/utf8proc@a1b99daa2a3393884220264c927a48ba1251a9c6",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "ed32eadb4c051410c1aff57f490459436d30bc943800d953bbb8d52178ab1ab0cf54b10982dab77eccce6d1354b1831b9528627137367ca7eeef813e4fd5ef73"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "fileName": "./export-cmake-targets.patch",
+      "SPDXID": "SPDXRef-file-0",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "356a87175fcfd6ce2a5db6f2a15355a435e3d0affcea7621ec9e2c61ad71d09d"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": "./portfile.cmake",
+      "SPDXID": "SPDXRef-file-1",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "a8eff9bdd3b9535bf982c0f78bcd6930195d41d531d1ab9a1b2c5b7e26f838a0"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": "./vcpkg.json",
+      "SPDXID": "SPDXRef-file-2",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "74dd5a2194b4e9e82aa78108693efe763fe42e0631d9702e590e09b665f97939"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ]
+}

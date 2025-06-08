@@ -88,6 +88,13 @@ pub const Timestamp = struct {
                 try writer.print(".{d:0>9}", .{self.nanoseconds});
             }
             try writer.writeAll("Z");
+        } else if (std.mem.eql(u8, fmt_str, "time")) {
+            const seconds_in_day = @mod(self.unix_seconds, time.s_per_day);
+            const hours = @divTrunc(seconds_in_day, time.s_per_hour);
+            const minutes = @divTrunc(@mod(seconds_in_day, time.s_per_hour), time.s_per_min);
+            const seconds = @mod(seconds_in_day, time.s_per_min);
+
+            try writer.print("{d:0>2}:{d:0>2}:{d:0>2}", .{ hours, minutes, seconds });
         } else if (std.mem.eql(u8, fmt_str, "unix")) {
             try writer.print("{d}", .{self.unix_seconds});
         } else if (std.mem.eql(u8, fmt_str, "float")) {
